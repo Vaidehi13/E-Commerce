@@ -5,6 +5,7 @@ import com.ecommerce.service.inventory.inventory_service.service.InventoryServic
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,5 +21,11 @@ public class InventoryController {
         log.info("Received request to check if item with sku code "+skuCode+" is in stock for quantity "+quantity);
         boolean isInStock = inventoryService.isInStock(skuCode, quantity);
         return new InventoryResponse(skuCode,quantity,isInStock);
+    }
+    @PutMapping("/update")
+    public ResponseEntity<?> updateInventoryAfterPlacingOrder(@RequestParam String skuCode, @RequestParam Integer quantity){
+        log.info("Update inventory with sku code "+skuCode+" after order is placed");
+        inventoryService.updateInventoryAfterPlacingOrder(skuCode,quantity);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 }
