@@ -1,4 +1,4 @@
-package com.ecommerce.service.user.user_service.util;
+package com.ecommerce.service.order.order_service.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

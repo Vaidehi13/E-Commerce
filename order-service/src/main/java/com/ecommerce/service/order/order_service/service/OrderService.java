@@ -8,9 +8,7 @@ import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -34,24 +32,36 @@ public class OrderService {
 
     @Transactional
     public boolean placeOrder(OrderRequest orderRequest) {
-        String finalUrl = url + "?skuCode="+orderRequest.skuCode()+"&quantity="+orderRequest.quantity();
-        String finalUpdateUrl = updateUrl + "?skuCode="+orderRequest.skuCode()+"&quantity="+orderRequest.quantity();
+        // Construct URLs
+        String finalUrl = url + "?skuCode=" + orderRequest.skuCode() + "&quantity=" + orderRequest.quantity();
+        String finalUpdateUrl = updateUrl + "?skuCode=" + orderRequest.skuCode() + "&quantity=" + orderRequest.quantity();
 
-        ResponseEntity<InventoryResponse> response = restTemplate.exchange(finalUrl, HttpMethod.GET,null, InventoryResponse.class);
+        // Set up headers with JWT token
+        HttpHeaders headers = new HttpHeaders();
+//        headers.set("Authorization", "Bearer " + jwtToken);
+        HttpEntity<?> entity = new HttpEntity<>(headers);
+
+        // Check inventory availability
+        ResponseEntity<InventoryResponse> response = restTemplate.exchange(finalUrl, HttpMethod.GET, entity, InventoryResponse.class);
         InventoryResponse inventoryResponse = response.getBody();
-        Boolean isInStock = inventoryResponse.isInStock();
-        if(isInStock) {
+
+        // Handle cases where inventory response is null or product is out of stock
+        if (inventoryResponse != null && Boolean.TRUE.equals(inventoryResponse.isInStock())) {
             log.info("The requested order is in stock");
+
+            // Create and save the order
             Order order = new Order();
             order.setOrderNumber(UUID.randomUUID().toString());
             order.setPrice(orderRequest.price().multiply(BigDecimal.valueOf(orderRequest.quantity())));
             order.setSkuCode(orderRequest.skuCode());
             order.setQuantity(orderRequest.quantity());
             orderRepository.save(order);
-            restTemplate.exchange(finalUpdateUrl,HttpMethod.PUT,null,ResponseEntity.class);
+
+            // Update inventory after placing the order
+            restTemplate.exchange(finalUpdateUrl, HttpMethod.PUT, entity, Void.class);
             return true;
-        }else{
-//            throw new RuntimeException("Product with skuCode "+orderRequest.skuCode()+" is not in stock");
+        } else {
+            log.warn("Product with skuCode {} is not in stock", orderRequest.skuCode());
             return false;
         }
     }
