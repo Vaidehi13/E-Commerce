@@ -45,7 +45,7 @@ public class UserController {
             ));
             UserDetails userDetails = customUserDetailsService.loadUserByUsername(user.getUsername());
             //Generate token for current user
-            String jwtToken = jwtUtil.generateToken(userDetails.getUsername());
+            String jwtToken = jwtUtil.generateToken(userDetails.getUsername(),user.getRoles());
             return new ResponseEntity<>(jwtToken, HttpStatus.OK);
         }catch (Exception e){
             log.error("Exception occurred while createAuthenticationToken ", e);

@@ -1,4 +1,4 @@
-package com.ecommerce.service.user.user_service.util;
+package com.ecommerce.service.product.product_service.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -47,7 +47,7 @@ public class JwtUtil {
         return extractExpiration(token).before(new Date());
     }
 
-    // Generate a new token for the username
+    // Generate a new token for the username, including roles
     public String generateToken(String username, List<String> roles) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", roles); // Include roles in the claims
