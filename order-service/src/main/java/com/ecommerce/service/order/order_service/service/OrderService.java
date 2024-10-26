@@ -63,9 +63,13 @@ public class OrderService {
             orderRepository.save(order);
 
             //Send asynchronous event to notification-service using Kafka
-            log.info("Sending email events to kafka");
-            kafkaTemplate.send("order_placed_event",new OrderPlacedEvent(order.getOrderNumber(),orderRequest.userDetails().email(),orderRequest.userDetails().firstName()));
-            log.info("Completed sending email events to kafka");
+            try {
+                log.info("Sending email events to kafka");
+                kafkaTemplate.send("order_placed_event",new OrderPlacedEvent(order.getOrderNumber(),orderRequest.userDetails().email(),orderRequest.userDetails().firstName()));
+                log.info("Completed sending email events to kafka");
+            }catch (Exception e){
+                log.info("Failed to send order placed event to Kafka");
+            }
 
             // Update inventory after placing the order
             restTemplate.exchange(finalUpdateUrl, HttpMethod.PUT, entity, Void.class);
