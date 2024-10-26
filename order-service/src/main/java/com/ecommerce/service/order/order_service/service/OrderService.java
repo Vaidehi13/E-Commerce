@@ -3,12 +3,14 @@ package com.ecommerce.service.order.order_service.service;
 import com.ecommerce.service.order.order_service.client.InventoryResponse;
 import com.ecommerce.service.order.order_service.dto.OrderRequest;
 import com.ecommerce.service.order.order_service.entity.Order;
+import com.ecommerce.service.order.order_service.event.OrderPlacedEvent;
 import com.ecommerce.service.order.order_service.repository.OrderRepository;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -29,6 +31,9 @@ public class OrderService {
 
     @Value("${inventory.api.update.url}")
     private String updateUrl;
+
+    @Autowired
+    private KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
     @Transactional
     public boolean placeOrder(OrderRequest orderRequest) {
@@ -56,6 +61,11 @@ public class OrderService {
             order.setSkuCode(orderRequest.skuCode());
             order.setQuantity(orderRequest.quantity());
             orderRepository.save(order);
+
+            //Send asynchronous event to notification-service using Kafka
+            log.info("Sending email events to kafka");
+            kafkaTemplate.send("order_placed_event",new OrderPlacedEvent(order.getOrderNumber(),orderRequest.userDetails().email(),orderRequest.userDetails().firstName()));
+            log.info("Completed sending email events to kafka");
 
             // Update inventory after placing the order
             restTemplate.exchange(finalUpdateUrl, HttpMethod.PUT, entity, Void.class);
