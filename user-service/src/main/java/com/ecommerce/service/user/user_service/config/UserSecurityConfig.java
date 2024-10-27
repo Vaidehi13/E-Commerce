@@ -30,13 +30,14 @@ public class UserSecurityConfig {
         return http
                 .authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests
-                                .requestMatchers("/api/user/**").permitAll()
+                                .requestMatchers("/api/user/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                                 .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
                 .build();
     }
+
     @Bean
     @Lazy
     public PasswordEncoder passwordEncoder() {

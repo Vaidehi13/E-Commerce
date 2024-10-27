@@ -4,6 +4,7 @@ import com.ecommerce.service.user.user_service.entity.User;
 import com.ecommerce.service.user.user_service.service.CustomUserDetailsService;
 import com.ecommerce.service.user.user_service.service.UserService;
 import com.ecommerce.service.user.user_service.util.JwtUtil;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "User APIs",description = "Register new user and login existing user")
 public class UserController {
     private final UserService userService;
 
