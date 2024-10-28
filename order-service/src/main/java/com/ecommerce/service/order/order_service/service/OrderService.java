@@ -5,6 +5,8 @@ import com.ecommerce.service.order.order_service.dto.OrderRequest;
 import com.ecommerce.service.order.order_service.entity.Order;
 import com.ecommerce.service.order.order_service.event.OrderPlacedEvent;
 import com.ecommerce.service.order.order_service.repository.OrderRepository;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +37,11 @@ public class OrderService {
     @Autowired
     private KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
+    @Autowired
+    private CircuitBreakerRegistry circuitBreakerRegistry;
+
+    private InventoryResponse inventoryResponse;
+
     @Transactional
     public boolean placeOrder(OrderRequest orderRequest) {
         // Construct URLs
@@ -46,9 +53,23 @@ public class OrderService {
 //        headers.set("Authorization", "Bearer " + jwtToken);
         HttpEntity<?> entity = new HttpEntity<>(headers);
 
+        //Set the Circuit Breaker for Inventory Client
+        CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("inventory");
+
         // Check inventory availability
-        ResponseEntity<InventoryResponse> response = restTemplate.exchange(finalUrl, HttpMethod.GET, entity, InventoryResponse.class);
-        InventoryResponse inventoryResponse = response.getBody();
+//        ResponseEntity<InventoryResponse> response = restTemplate.exchange(finalUrl, HttpMethod.GET, entity, InventoryResponse.class);
+//        InventoryResponse inventoryResponse = response.getBody();
+        // Check inventory availability with CircuitBreaker
+        try {
+            // Check inventory availability with CircuitBreaker
+            inventoryResponse = circuitBreaker.executeSupplier(() -> {
+                ResponseEntity<InventoryResponse> response = restTemplate.exchange(finalUrl, HttpMethod.GET, entity, InventoryResponse.class);
+                return response.getBody();
+            });
+        } catch (Exception e) {
+            // Call fallback method if there's an exception
+            handleInventoryFallback();
+        };
 
         // Handle cases where inventory response is null or product is out of stock
         if (inventoryResponse != null && Boolean.TRUE.equals(inventoryResponse.isInStock())) {
@@ -71,12 +92,18 @@ public class OrderService {
                 log.info("Failed to send order placed event to Kafka");
             }
 
-            // Update inventory after placing the order
-            restTemplate.exchange(finalUpdateUrl, HttpMethod.PUT, entity, Void.class);
+            // Update inventory after placing the order with CircuitBreaker
+            circuitBreaker.executeRunnable(() -> {
+                restTemplate.exchange(finalUpdateUrl, HttpMethod.PUT, entity, Void.class);
+            });
             return true;
         } else {
             log.warn("Product with skuCode {} is not in stock", orderRequest.skuCode());
             return false;
         }
+    }
+    public boolean handleInventoryFallback() {
+        log.warn("Inventory service is down. Please try again later");
+        return false;
     }
 }
