@@ -24,6 +24,7 @@ public class ProductSecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for simplicity
                 .authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests
+                                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                                 .requestMatchers("/api/product/create").hasRole("ADMIN") // Only allow ADMIN role
                                 .anyRequest().authenticated()
                 )
