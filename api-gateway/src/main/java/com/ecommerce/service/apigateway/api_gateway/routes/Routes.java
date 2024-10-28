@@ -5,6 +5,13 @@ import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Mono;
+
+import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
+import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
 /**
  * This class is responsible for creating endpoints for our services
@@ -31,6 +38,8 @@ public class Routes {
                                                     .build())
                                             .build());
                                 })
+                                .circuitBreaker(c -> c.setName("productServiceCircuitBreaker")
+                                        .setFallbackUri("forward:/fallback")) //set name and url for fallback to set a circuit breaker
                     )
                     .uri("http://localhost:8080")) // URL of your Product Service
             .build();
@@ -55,6 +64,8 @@ public class Routes {
                                                     .build())
                                             .build());
                                 })
+                                .circuitBreaker(c -> c.setName("orderServiceCircuitBreaker")
+                                        .setFallbackUri("forward:/fallback"))
                         )
                         .uri("http://localhost:8082")) // URL of your Order Service
                 .build();
@@ -63,7 +74,16 @@ public class Routes {
     public RouteLocator routeLocatorUser(RouteLocatorBuilder builder) {
         return builder.routes()
                 .route("user_service", r -> r.path("/api/user/**")
+                        .filters(f -> f.circuitBreaker(c -> c.setName("userServiceCircuitBreaker")
+                                .setFallbackUri("forward:/fallback")))
                         .uri("http://localhost:8083")) // URL of your User Service
                 .build();
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> fallback() {
+        return route(GET("/fallback"), request ->
+                ServerResponse.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Mono.just("Service is temporarily unavailable. Please try again later."), String.class));
     }
 }
